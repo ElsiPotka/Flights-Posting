@@ -1,0 +1,10 @@
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+lint.select = ["E", "F", "I"]
+exclude = [
+    ".venv",
+    "venv",
+    "alembic",
+    "app/models"
+]
