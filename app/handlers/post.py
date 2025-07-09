@@ -51,16 +51,36 @@ def get_post_by_id(db: Session, post_id: str) -> Optional[Post]:
 
 
 def get_posts_paginated(
-    db: Session, page: int, size: int, *, flight_id: str = None
+    db: Session,
+    page: int,
+    size: int,
+    *,
+    flight_id: Optional[str] = None,
+    q: Optional[str] = None,
+    author_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Get a paginated list of non-deleted posts, optionally filtered by flight_id.
+    Get a paginated list of non-deleted posts, optionally filtered by flight_id and searchable by title.
+
+    Args:
+        db: Database session
+        page: Page number
+        size: Items per page
+        flight_id: Optional flight ID filter
+        q: Optional search query for post title (case-insensitive partial match)
     """
     offset = (page - 1) * size
+
     base_query = select(Post).where(Post.deleted_at.is_(None))
 
     if flight_id:
         base_query = base_query.where(Post.flight_id == flight_id)
+
+    if author_id:
+        base_query = base_query.where(Post.user_id == author_id)
+
+    if q:
+        base_query = base_query.where(Post.title.ilike(f"%{q}%"))
 
     total_query = select(func.count()).select_from(base_query.subquery())
     total = db.scalar(total_query)
@@ -75,6 +95,7 @@ def get_posts_paginated(
         .offset(offset)
         .limit(size)
     )
+
     items = db.scalars(items_query).all()
 
     return {"items": items, "total": total, "page": page, "size": size}

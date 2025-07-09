@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.city import City
 from app.models.flight import Flight
-from app.schemas.flight import FlightCreate, FlightUpdate
+from app.schemas.flight import FlightCreate, FlightStatus, FlightUpdate
 
 
 def check_cities_exist(db: Session, origin_city_id: str, destination_city_id: str):
@@ -55,12 +55,37 @@ def get_flight_by_id(db: Session, flight_id: str) -> Optional[Flight]:
     return db.scalars(statement).first()
 
 
-def get_flights_paginated(db: Session, page: int, size: int) -> Dict[str, Any]:
+def get_flights_paginated(
+    db: Session,
+    page: int,
+    size: int,
+    airline: Optional[str] = None,
+    flight_number: Optional[str] = None,
+    origin_city_id: Optional[str] = None,
+    destination_city_id: Optional[str] = None,
+    status: Optional[FlightStatus] = None,
+) -> Dict[str, Any]:
     """
-    Get a paginated list of non-deleted flights.
+    Get a paginated list of non-deleted flights with optional filtering.
     """
     offset = (page - 1) * size
+
     base_query = select(Flight).where(Flight.deleted_at.is_(None))
+
+    if airline:
+        base_query = base_query.where(Flight.airline.ilike(f"%{airline}%"))
+
+    if flight_number:
+        base_query = base_query.where(Flight.flight_number.ilike(f"%{flight_number}%"))
+
+    if origin_city_id:
+        base_query = base_query.where(Flight.origin_city_id == origin_city_id)
+
+    if destination_city_id:
+        base_query = base_query.where(Flight.destination_city_id == destination_city_id)
+
+    if status:
+        base_query = base_query.where(Flight.status == status)
 
     total_query = select(func.count()).select_from(base_query.subquery())
     total = db.scalar(total_query)
@@ -73,6 +98,7 @@ def get_flights_paginated(db: Session, page: int, size: int) -> Dict[str, Any]:
         .offset(offset)
         .limit(size)
     )
+
     items = db.scalars(items_query).all()
 
     return {"items": items, "total": total, "page": page, "size": size}

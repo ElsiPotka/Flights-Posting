@@ -42,7 +42,7 @@ def create_post(
 @router.get(
     "/",
     response_model=PostListResponse,
-    summary="Get a paginated list of posts",
+    summary="Get a paginated list of posts with optional search",
 )
 def list_posts(
     db: Annotated[Session, Depends(get_db)],
@@ -51,13 +51,25 @@ def list_posts(
     flight_id: Annotated[
         str | None, Query(description="Optionally filter posts by flight ID")
     ] = None,
+    q: Annotated[
+        str | None,
+        Query(description="Search posts by title (case-insensitive partial match)"),
+    ] = None,
+    author_id: Annotated[
+        str | None, Query(description="Optionally filter posts by author ID")
+    ] = None,
 ) -> PostListResponse:
     """
-    Retrieve a paginated list of posts. This is a public endpoint.
-    Can be filtered by `flight_id` to see all posts for a specific flight.
+    Retrieve a paginated list of posts with optional filtering and search.
+
+    Filters:
+    - flight_id: Exact match to filter posts by specific flight
+    - q: Search query for post titles (case-insensitive partial match)
+
+    This is a public endpoint.
     """
     post_page_data = post_handler.get_posts_paginated(
-        db=db, page=page, size=size, flight_id=flight_id
+        db=db, page=page, size=size, flight_id=flight_id, q=q, author_id=author_id
     )
     return PostListResponse(**post_page_data)
 

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.schemas.flight import (
     FlightCreate,
     FlightListResponse,
     FlightRead,
+    FlightStatus,
     FlightUpdate,
 )
 from app.utils.db import get_db
@@ -20,17 +21,52 @@ router = APIRouter(prefix="/flights", tags=["Flights"])
 @router.get(
     "/",
     response_model=FlightListResponse,
-    summary="Get a paginated list of flights",
+    summary="Get a paginated list of flights with optional filtering",
 )
 def list_flights(
     db: Annotated[Session, Depends(get_db)],
     page: Annotated[int, Query(ge=1, description="Page number to retrieve")] = 1,
     size: Annotated[int, Query(ge=1, le=100, description="Flights per page")] = 20,
+    airline: Annotated[
+        Optional[str],
+        Query(description="Filter by airline name (case-insensitive partial match)"),
+    ] = None,
+    flight_number: Annotated[
+        Optional[str],
+        Query(description="Filter by flight number (case-insensitive partial match)"),
+    ] = None,
+    origin_city_id: Annotated[
+        Optional[str], Query(description="Filter by origin city ID (exact match)")
+    ] = None,
+    destination_city_id: Annotated[
+        Optional[str], Query(description="Filter by destination city ID (exact match)")
+    ] = None,
+    flight_status: Annotated[
+        Optional[FlightStatus], Query(description="Filter by flight status")
+    ] = None,
 ) -> FlightListResponse:
     """
-    Retrieve a paginated list of all flights. This endpoint is public.
+    Retrieve a paginated list of flights with optional filtering.
+
+    Filters:
+    - airline: Partial match, case-insensitive
+    - flight_number: Partial match, case-insensitive
+    - origin_city_id: Exact match
+    - destination_city_id: Exact match
+    - status: Exact match with enum values
+
+    This endpoint is public.
     """
-    flight_page_data = flight_handler.get_flights_paginated(db=db, page=page, size=size)
+    flight_page_data = flight_handler.get_flights_paginated(
+        db=db,
+        page=page,
+        size=size,
+        airline=airline,
+        flight_number=flight_number,
+        origin_city_id=origin_city_id,
+        destination_city_id=destination_city_id,
+        status=flight_status,
+    )
     return FlightListResponse(**flight_page_data)
 
 
